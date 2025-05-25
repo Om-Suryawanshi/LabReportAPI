@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "3kjBGhzVWM0=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\KIIT0001\\Desktop\\LAB\\ASP.NET\\LabReportAPI\\LabReportAPI.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\KIIT0001\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.5\\microsoft.aspnetcore.openapi.9.0.5.nupkg.sha512",
+    "C:\\Users\\KIIT0001\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}
