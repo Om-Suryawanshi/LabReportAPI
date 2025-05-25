@@ -1,6 +1,5 @@
 @LabReportAPI_HostAddress = http://localhost:5097
 
-GET {{LabReportAPI_HostAddress}}/weatherforecast/
-Accept: application/json
+GET {{LabReportAPI_HostAddress}}/api/labdata/status
 
 ###
