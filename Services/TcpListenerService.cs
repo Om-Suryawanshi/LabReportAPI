@@ -14,7 +14,7 @@ public class TcpListenerService : BackgroundService
 {
     private readonly ILogger<TcpListenerService> _logger;
     private TcpListener? _tcpListener;
-    private const string IpAddress = "127.0.0.1";
+    private const string IpAddress = "0.0.0.0";
     private const int Port = 12377;
     private const int BufferSize = 4096;
 
