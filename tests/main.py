@@ -1,100 +1,100 @@
 import socket
 import time
 
-class LabClient:
-    def __init__(self, host='127.0.0.1', port=12377):
-        self.host = host
-        self.port = port
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        
-    def send_message(self, message: str):
-        """Send properly framed message with STX/ETX"""
-        framed = b'\x02' + message.encode('utf-8') + b'\x03'
-        self.sock.sendall(framed)
+SERVER_IP = "192.168.0.3"  # <-- change this to your server's LAN IP
+SERVER_PORT = 12377
 
-    def connect(self):
-        self.sock.connect((self.host, self.port))
-        print(f"Connected to {self.host}:{self.port}")
-        
-    def close(self):
-        try:
-            self.sock.send(b'\x04')  # Optional: Graceful EOT
-        except:
-            pass
-        self.sock.close()
-        print("Connection closed")
-
-    def security_test(self):
-        tests = [
-            ("VALID", b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03'),
-            ("SQL_INJECTION", b'\x02PATIENT001;DROP TABLE|GLUCOSE|120|mg/dL\x03'),
-            ("OVERFLOW", b'\x02' + b'A'*10000 + b'\x03'),
-            ("MALFORMED", b'\x02INCOMPLETE_MESSAGE'),
-            ("RAPID_FIRE", [b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03'] * 10),
-        ]
-
-        for name, data in tests:
-            print(f"\n--- Testing: {name} ---")
-            try:
-                with socket.create_connection((self.host, self.port), timeout=2) as s:
-                    if isinstance(data, list):
-                        for packet in data:
-                            s.sendall(packet)
-                            time.sleep(0.01)
-                            try:
-                                print("Received:", s.recv(1024))
-                            except socket.timeout:
-                                print("No response")
-                    else:
-                        s.sendall(data)
-                        print("Sent:", data)
-                        try:
-                            response = s.recv(1024)
-                            print("Received:", response)
-                        except socket.timeout:
-                            print("No response")
-            except Exception as e:
-                print(f"Test {name} failed: {e}")
-            time.sleep(1)
-
-
-def simulate_lab_machine():
-    client = LabClient()
-    
+def send_and_receive(data, description, expect_multiple=False, delay_between=0.05):
+    print(f"\n--- {description} ---")
     try:
-        client.connect()
-        
-        # Send valid messages
-        tests = [
-            "PATIENT123|GLUCOSE|120|mg/dL",
-            "PATIENT456|HEMOGLOBIN|14.5|g/dL",
-            "PATIENT789|CHOLESTEROL|180|mg/dL"
-        ]
-        
-        for test in tests:
-            print(f"Sending: {test}")
-            client.send_message(test)
-            
-            # Wait for ACK
-            response = client.sock.recv(1)
-            if response == b'\x06':
-                print("Received ACK")
+        with socket.create_connection((SERVER_IP, SERVER_PORT), timeout=3) as s:
+            if isinstance(data, list):
+                for i, packet in enumerate(data):
+                    print(f"Sending packet {i+1}: {repr(packet)}")
+                    s.sendall(packet)
+                    try:
+                        resp = s.recv(1024)
+                        print(f"Received: {repr(resp)}")
+                    except socket.timeout:
+                        print("No response (timeout)")
+                    time.sleep(delay_between)
             else:
-                print(f"Unexpected response: {response.hex()}")
-            time.sleep(1)
-        
-        client.close()
-        
-        # Run security tests separately
-        client.security_test()
-            
+                print(f"Sending: {repr(data)}")
+                s.sendall(data)
+                try:
+                    resp = s.recv(1024)
+                    print(f"Received: {repr(resp)}")
+                except socket.timeout:
+                    print("No response (timeout)")
     except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        try:
-            client.close()
-        except:
-            pass
+        print(f"Exception: {e}")
+
+def main():
+    # 1. Valid messages
+    valid_messages = [
+        b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03',
+        b'\x02PATIENT002|HEMOGLOBIN|14.5|g/dL\x03',
+        b'\x02PATIENT003|CHOLESTEROL|180|mg/dL\x03',
+    ]
+    for msg in valid_messages:
+        send_and_receive(msg, "Valid Message")
+
+    # 2. SQL Injection attempt
+    send_and_receive(
+        b'\x02PATIENT001;DROP TABLE|GLUCOSE|120|mg/dL\x03',
+        "SQL Injection Attempt"
+    )
+
+    # 3. Buffer overflow (very long message)
+    send_and_receive(
+        b'\x02' + b'A' * 10000 + b'\x03',
+        "Buffer Overflow Attempt"
+    )
+
+    # 4. Malformed message (no ETX)
+    send_and_receive(
+        b'\x02INCOMPLETE_MESSAGE',
+        "Malformed Message (Missing ETX)"
+    )
+
+    # 5. Rapid fire (rate limiting test)
+    rapid_fire_packets = [b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03'] * 10
+    send_and_receive(
+        rapid_fire_packets,
+        "Rapid Fire (Rate Limiting Test)",
+        expect_multiple=True,
+        delay_between=0.01
+    )
+
+    # 6. Invalid test name
+    send_and_receive(
+        b'\x02PATIENT004|HACKTEST|100|mg/dL\x03',
+        "Invalid Test Name"
+    )
+
+    # 7. Invalid patient ID
+    send_and_receive(
+        b'\x02BADPATIENT|GLUCOSE|120|mg/dL\x03',
+        "Invalid Patient ID"
+    )
+
+    # 8. Invalid value
+    send_and_receive(
+        b'\x02PATIENT005|GLUCOSE|-10|mg/dL\x03',
+        "Invalid Value"
+    )
+
+    # 9. Invalid unit
+    send_and_receive(
+        b'\x02PATIENT006|GLUCOSE|120|mg/L\x03',
+        "Invalid Unit"
+    )
+
+    # 10. HTML/JS injection attempt
+    send_and_receive(
+        b'\x02PATIENT007|GLUCOSE|120|mg/dL<script>alert(1)</script>\x03',
+        "HTML/JS Injection Attempt"
+    )
 
 if __name__ == "__main__":
-    simulate_lab_machine()
+    main()

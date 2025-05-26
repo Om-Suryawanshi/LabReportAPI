@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+
 public class TcpListenerService : BackgroundService
 {
     private readonly ILogger<TcpListenerService> _logger;
@@ -117,6 +118,7 @@ public class TcpListenerService : BackgroundService
 
     private async Task ProcessMessageBuffer(StringBuilder buffer, NetworkStream stream, CancellationToken ct, string clientIp, TcpClient client)
     {
+        _logger.LogInformation(buffer.ToString());
         while (buffer.Length > 0)
         {
             var etxIndex = buffer.ToString().IndexOf('\x03');
@@ -125,44 +127,46 @@ public class TcpListenerService : BackgroundService
             var stxIndex = buffer.ToString().IndexOf('\x02');
             if (stxIndex == -1 || etxIndex <= stxIndex)
             {
-                _logger.LogWarning("Malformed message - sending NAK");
+                _logger.LogWarning($"Malformed message from {clientIp}: {buffer}");
                 await SendResponse(stream, "\x15", ct); // NAK
                 buffer.Clear();
-                RegisterError(clientIp, client, ct, stream);
+                RegisterError(clientIp); // Don't block immediately
                 return;
             }
 
             var message = buffer.ToString(stxIndex + 1, etxIndex - stxIndex - 1);
             buffer.Remove(0, etxIndex + 1);
 
-            // Security checks
             if (ContainsMaliciousContent(message))
             {
-                _logger.LogWarning($"Blocked malicious content from {clientIp}");
-                await BlockClient(clientIp, client, ct, stream);
-                return;
+                _logger.LogWarning($"[MALICIOUS INPUT] from {clientIp}: {message}");
+                await SendResponse(stream, "\x15", ct); // NAK
+                RegisterError(clientIp);
+                continue;
             }
 
             if (CheckRateLimit(clientIp))
             {
-                _logger.LogWarning($"Rate limit exceeded for {clientIp}");
-                await BlockClient(clientIp, client, ct, stream);
-                return;
+                _logger.LogWarning($"[RATE LIMIT EXCEEDED] {clientIp}");
+                await SendResponse(stream, "\x15", ct); // NAK
+                RegisterError(clientIp);
+                continue;
             }
 
             if (!ValidateLabMessage(message))
             {
-                _logger.LogWarning($"Invalid message from {clientIp}");
+                _logger.LogWarning($"[INVALID MESSAGE] from {clientIp}: {message}");
                 await SendResponse(stream, "\x15", ct); // NAK
-                RegisterError(clientIp, client, ct, stream);
-                return;
+                RegisterError(clientIp);
+                continue;
             }
 
-            _logger.LogInformation($"Processing message: {message}");
+            _logger.LogInformation($"[VALID MESSAGE] from {clientIp}: {message}");
             await ProcessLabData(message);
             await SendResponse(stream, "\x06", ct); // ACK
         }
     }
+
 
     private async Task SendResponse(NetworkStream stream, string response, CancellationToken ct)
     {
@@ -173,7 +177,6 @@ public class TcpListenerService : BackgroundService
 
     private async Task ProcessLabData(string message)
     {
-        // Implement your actual processing logic here
         await Task.Delay(100); // Simulate processing time
         _logger.LogInformation($"Processed: {message}");
     }
@@ -214,16 +217,16 @@ public class TcpListenerService : BackgroundService
     {
         var dangerousPatterns = new[]
         {
-            @"[\x00-\x1F]",  // Control characters
-            @"[;'""]",       // SQL/Command injection
-            @"(--|\/\*|\*\/)", // SQL comments
-            @"(drop|delete|insert|update|select|union)", // SQL keywords
-            @"(<|>|\/|\\)"   // HTML/XML injection
+        @"[;'""]",                        // Quotes/semi-colons
+        @"(--|\/\*|\*\/)",               // SQL comments
+        @"\b(drop|delete|insert|update|select|union)\b", // SQL keywords
+        @"(<|>|\\)"                      // HTML/XML/escape
         };
 
         return dangerousPatterns.Any(pattern =>
             Regex.IsMatch(input, pattern, RegexOptions.IgnoreCase));
     }
+
 
     private bool CheckRateLimit(string clientIp)
     {
@@ -239,16 +242,18 @@ public class TcpListenerService : BackgroundService
         return false;
     }
 
-    private void RegisterError(string clientIp, TcpClient client, CancellationToken ct, NetworkStream stream)
+    private void RegisterError(string clientIp)
     {
         var stats = ClientStatistics.GetOrAdd(clientIp, new ClientStats());
         stats.ErrorCount++;
+
         if (stats.ErrorCount > 10)
         {
-            _logger.LogWarning($"Too many errors from {clientIp}, blocking.");
-            BlockClient(clientIp, client, ct, stream).Wait(ct);
+            _logger.LogWarning($"Too many errors from {clientIp}, now blocking.");
+            BlockedIps.Add(clientIp);
         }
     }
+
 
     private async Task BlockClient(string ip, TcpClient client, CancellationToken ct, NetworkStream stream)
     {
@@ -257,4 +262,13 @@ public class TcpListenerService : BackgroundService
         await SendResponse(stream, "\x04", ct); // EOT
         client.Close();
     }
+
+    private void ResetClientStats(string clientIp)
+    {
+        if (ClientStatistics.TryGetValue(clientIp, out var stats))
+        {
+            stats.ErrorCount = 0;
+        }
+    }
+
 }
