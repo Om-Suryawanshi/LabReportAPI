@@ -1,4 +1,5 @@
 import socket
+import requests
 import time
 
 SERVER_IP = "192.168.0.3"  # <-- change this to your server's LAN IP
@@ -87,6 +88,11 @@ def error():
         "HTML/JS Injection Attempt"
     )
 
+def post():
+    url = "http://192.168.0.3/api/labdata/save"
+    resp = requests.post(url)
+    print(resp)
+
 def main():
     # 1. Valid messages
     valid_messages = [
@@ -96,6 +102,8 @@ def main():
     ]
     for msg in valid_messages:
         send_and_receive(msg, "Valid Message")
+
+    post()
 
     # error()
 

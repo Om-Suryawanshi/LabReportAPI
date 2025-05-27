@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -25,11 +26,14 @@ public class LabDataController : ControllerBase
             LastWriteTime = TcpListenerService.GetLastWriteTime()
         });
     }
-    [HttpPost("save")]
-    public IActionResult TriggerSave()
-    {
-        Task.Run(() => TcpListenerService.TriggerManualSave());
-        return Ok(new { message = "Manual save triggered." });
-    }
 
+    [HttpPost("save")]
+    public async Task<IActionResult> TriggerSave()
+    {
+        if (TcpListenerService.Instance is null)
+            return StatusCode(500, new { message = "TCP Listener service is not available." });
+
+        var (success, message) = await TcpListenerService.Instance.TriggerManualSave();
+        return Ok(new { success, message });
+    }
 }

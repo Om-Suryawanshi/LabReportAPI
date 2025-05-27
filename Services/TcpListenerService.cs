@@ -17,6 +17,8 @@ using Microsoft.Extensions.Options;
 
 public class TcpListenerService : BackgroundService
 {
+    public static TcpListenerService? Instance { get; private set; }
+
     private readonly ILogger<TcpListenerService> _logger;
     private readonly LabSettings _settings;
     private TcpListener? _tcpListener;
@@ -45,6 +47,7 @@ public class TcpListenerService : BackgroundService
     {
         _logger = logger;
         _settings = settings.Value;
+        Instance = this;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -315,41 +318,73 @@ public class TcpListenerService : BackgroundService
 
             if (idle && LabMessages.Count > 0)
             {
+                _lastWriteStatus = "Writing to USB...";
+
+                DriveInfo? usbDrive = null;
+
                 try
                 {
-                    _lastWriteStatus = "Writing to USB...";
-
-                    var usbDrive = DriveInfo.GetDrives()
-                        .FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
-
-                    if (usbDrive != null)
+                    // 1. Try to use configured USB path if present
+                    if (!string.IsNullOrWhiteSpace(_settings.UsbPath))
                     {
-                        var timestamp = now.ToString("yyyyMMdd_HHmmss");
-                        var filename = $"LabData_{timestamp}.json";
-                        var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
-
-                        var messagesSnapshot = LabMessages.ToArray();
-                        var json = JsonSerializer.Serialize(messagesSnapshot, new JsonSerializerOptions { WriteIndented = true });
-                        await File.WriteAllTextAsync(path, json, stoppingToken);
-
-                        _logger.LogInformation($"✅ Saved {messagesSnapshot.Length} messages to USB: {path}");
-
-                        // Clear after save
-                        while (!LabMessages.IsEmpty)
-                            LabMessages.TryTake(out _);
-
-                        _lastWriteStatus = $"Last saved to USB at {now:yyyy-MM-dd HH:mm:ss}";
-                        _lastWriteTime = now;
+                        usbDrive = new DriveInfo(_settings.UsbPath);
+                        if (!usbDrive.IsReady || usbDrive.DriveType != DriveType.Removable)
+                        {
+                            _logger.LogWarning("Configured USB path is invalid or not ready.");
+                            usbDrive = null;
+                        }
                     }
-                    else
+
+                    // 2. Fallback to automatic USB detection
+                    if (usbDrive == null)
+                    {
+                        usbDrive = DriveInfo.GetDrives()
+                            .FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
+                    }
+
+                    if (usbDrive == null)
                     {
                         _logger.LogWarning("⚠️ No USB drive detected.");
                         _lastWriteStatus = "USB not found";
+                        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+                        continue;
+                    }
+
+                    // 3. Attempt write with retry logic
+                    int retryCount = 3;
+                    while (retryCount-- > 0)
+                    {
+                        try
+                        {
+                            var timestamp = now.ToString("yyyyMMdd_HHmmss");
+                            var filename = $"LabData_{timestamp}.json";
+                            var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
+
+                            var messagesSnapshot = LabMessages.ToArray();
+                            var json = JsonSerializer.Serialize(messagesSnapshot, new JsonSerializerOptions { WriteIndented = true });
+
+                            await File.WriteAllTextAsync(path, json, stoppingToken);
+                            _logger.LogInformation($"✅ Saved {messagesSnapshot.Length} messages to USB at: {path}");
+
+                            // Clear after successful write
+                            while (!LabMessages.IsEmpty)
+                                LabMessages.TryTake(out _);
+
+                            _lastWriteStatus = $"Saved at {now:HH:mm:ss}";
+                            _lastWriteTime = now;
+                            break; // Success
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, $"Retrying USB write... attempts left: {retryCount}");
+                            _lastWriteStatus = $"Retrying write... {retryCount} attempts left";
+                            await Task.Delay(2000, stoppingToken);
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "❌ Error writing to USB");
+                    _logger.LogError(ex, "❌ Error detecting USB or writing file.");
                     _lastWriteStatus = "Error writing to USB";
                 }
             }
@@ -359,26 +394,99 @@ public class TcpListenerService : BackgroundService
     }
 
 
-    public static void TriggerManualSave()
+    public async Task<(bool success, string message)> TriggerManualSave()
     {
-        _ = Task.Run(() => SaveMessagesToUsb(force: true));
+        await SaveMessagesToUsb(force: true);
+        return (_lastWriteStatus.StartsWith("Saved"), _lastWriteStatus);
     }
 
-    private static async Task SaveMessagesToUsb(bool force = false)
+
+    private async Task SaveMessagesToUsb(bool force = false)
+
     {
         try
         {
             var now = DateTime.UtcNow;
+
+            // Skip if not forced and not idle
             if (!force && (now - _lastReceivedMessage) < TimeSpan.FromSeconds(30))
                 return;
 
-            // same logic from periodic save...
+            _lastWriteStatus = "Manual USB write triggered...";
+
+            DriveInfo? usbDrive = null;
+
+            try
+            {
+                // 1. Try configured path
+                if (!string.IsNullOrWhiteSpace(_settings.UsbPath))
+                {
+                    usbDrive = new DriveInfo(_settings.UsbPath);
+                    if (!usbDrive.IsReady || usbDrive.DriveType != DriveType.Removable)
+                    {
+                        _logger.LogWarning("Configured USB path is invalid or not ready.");
+                        usbDrive = null;
+                    }
+                }
+
+                // 2. Fallback auto-detection
+                if (usbDrive == null)
+                {
+                    usbDrive = DriveInfo.GetDrives()
+                        .FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
+                }
+
+                if (usbDrive == null)
+                {
+                    _logger.LogWarning("❌ No USB drive detected.");
+                    _lastWriteStatus = "Manual save failed: USB not found";
+                    return;
+                }
+
+                // 3. Retry save logic
+                int retryCount = 3;
+                while (retryCount-- > 0)
+                {
+                    try
+                    {
+                        var timestamp = now.ToString("yyyyMMdd_HHmmss");
+                        var filename = $"LabData_{timestamp}.json";
+                        var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
+
+                        var messagesSnapshot = LabMessages.ToArray();
+                        var json = JsonSerializer.Serialize(messagesSnapshot, new JsonSerializerOptions { WriteIndented = true });
+
+                        await File.WriteAllTextAsync(path, json);
+
+                        _logger.LogInformation($"✅ Manual save: {messagesSnapshot.Length} messages to {path}");
+
+                        while (!LabMessages.IsEmpty)
+                            LabMessages.TryTake(out _);
+
+                        _lastWriteTime = now;
+                        _lastWriteStatus = $"Manual save at {now:HH:mm:ss}";
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Retrying manual USB write... attempts left: {retryCount}");
+                        _lastWriteStatus = $"Retrying manual write... {retryCount} left";
+                        await Task.Delay(2000);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during manual save");
+                _lastWriteStatus = "Manual save failed: internal error";
+            }
         }
         catch (Exception ex)
         {
-            // handle/log
+            _logger.LogError(ex, "Fatal error in SaveMessagesToUsb");
         }
     }
+
 
     public static DateTime GetLastMessageTime() => _lastReceivedMessage;
     public static string GetLastWriteStatus() => _lastWriteStatus;
