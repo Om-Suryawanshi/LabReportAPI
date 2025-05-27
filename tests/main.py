@@ -29,16 +29,7 @@ def send_and_receive(data, description, expect_multiple=False, delay_between=0.0
     except Exception as e:
         print(f"Exception: {e}")
 
-def main():
-    # 1. Valid messages
-    valid_messages = [
-        b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03',
-        b'\x02PATIENT002|HEMOGLOBIN|14.5|g/dL\x03',
-        b'\x02PATIENT003|CHOLESTEROL|180|mg/dL\x03',
-    ]
-    for msg in valid_messages:
-        send_and_receive(msg, "Valid Message")
-
+def error():
     # 2. SQL Injection attempt
     send_and_receive(
         b'\x02PATIENT001;DROP TABLE|GLUCOSE|120|mg/dL\x03',
@@ -95,6 +86,20 @@ def main():
         b'\x02PATIENT007|GLUCOSE|120|mg/dL<script>alert(1)</script>\x03',
         "HTML/JS Injection Attempt"
     )
+
+def main():
+    # 1. Valid messages
+    valid_messages = [
+        b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03',
+        b'\x02PATIENT002|HEMOGLOBIN|14.5|g/dL\x03',
+        b'\x02PATIENT003|CHOLESTEROL|180|mg/dL\x03',
+    ]
+    for msg in valid_messages:
+        send_and_receive(msg, "Valid Message")
+
+    # error()
+
+    
 
 if __name__ == "__main__":
     main()

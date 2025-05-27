@@ -15,11 +15,21 @@ public class LabDataController : ControllerBase
     [HttpGet("status")]
     public IActionResult GetStatus()
     {
-        return Ok(new { 
+        return Ok(new
+        {
             Status = "Active",
             Protocol = "STX/ETX",
             Port = 12377,
-            LastActive = DateTime.UtcNow
+            LastMessageReceivedAt = TcpListenerService.GetLastMessageTime(),
+            LastWriteStatus = TcpListenerService.GetLastWriteStatus(),
+            LastWriteTime = TcpListenerService.GetLastWriteTime()
         });
     }
+    [HttpPost("save")]
+    public IActionResult TriggerSave()
+    {
+        Task.Run(() => TcpListenerService.TriggerManualSave());
+        return Ok(new { message = "Manual save triggered." });
+    }
+
 }

@@ -1,26 +1,38 @@
 using System;
+using System.IO;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 
 public class TcpListenerService : BackgroundService
 {
     private readonly ILogger<TcpListenerService> _logger;
+    private readonly LabSettings _settings;
     private TcpListener? _tcpListener;
     private const string IpAddress = "0.0.0.0";
     private const int Port = 12377;
     private const int BufferSize = 4096;
 
+    private static DateTime _lastReceivedMessage = DateTime.UtcNow;
+    private static string _lastWriteStatus = "Idle";
+    private static DateTime _lastWriteTime = DateTime.MinValue;
+
+
     // Security: Track blocked IPs and client stats for rate limiting
     private static readonly ConcurrentBag<string> BlockedIps = new();
+    private static readonly ConcurrentBag<LabMessage> LabMessages = new();
+
     private static readonly ConcurrentDictionary<string, ClientStats> ClientStatistics = new();
 
     private class ClientStats
@@ -29,9 +41,10 @@ public class TcpListenerService : BackgroundService
         public DateTime LastSeen { get; set; }
     }
 
-    public TcpListenerService(ILogger<TcpListenerService> logger)
+    public TcpListenerService(ILogger<TcpListenerService> logger, IOptions<LabSettings> settings)
     {
         _logger = logger;
+        _settings = settings.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -43,6 +56,9 @@ public class TcpListenerService : BackgroundService
         {
             _tcpListener.Start();
             _logger.LogInformation($"TCP Server started on {IpAddress}:{Port}");
+
+            // Start USB saving in background
+            _ = SaveMessagesToJsonPeriodically(stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -63,6 +79,7 @@ public class TcpListenerService : BackgroundService
             _tcpListener?.Stop();
         }
     }
+
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
     {
@@ -177,8 +194,21 @@ public class TcpListenerService : BackgroundService
 
     private async Task ProcessLabData(string message)
     {
-        await Task.Delay(100); // Simulate processing time
+        // Parse message
+        var parts = message.Split('|');
+        var labMessage = new LabMessage
+        {
+            PatientId = parts[0],
+            TestName = parts[1],
+            Value = double.Parse(parts[2]),
+            Unit = parts[3],
+            Timestamp = DateTime.UtcNow
+        };
+
+        LabMessages.Add(labMessage);
+        _lastReceivedMessage = DateTime.UtcNow;
         _logger.LogInformation($"Processed: {message}");
+        await Task.CompletedTask;
     }
 
     // --- Security and Validation Methods ---
@@ -270,5 +300,89 @@ public class TcpListenerService : BackgroundService
             stats.ErrorCount = 0;
         }
     }
+
+
+
+    // USB 
+    private async Task SaveMessagesToJsonPeriodically(CancellationToken stoppingToken)
+    {
+        var idleTimeout = TimeSpan.FromSeconds(30);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            var now = DateTime.UtcNow;
+            var idle = (now - _lastReceivedMessage) > idleTimeout;
+
+            if (idle && LabMessages.Count > 0)
+            {
+                try
+                {
+                    _lastWriteStatus = "Writing to USB...";
+
+                    var usbDrive = DriveInfo.GetDrives()
+                        .FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
+
+                    if (usbDrive != null)
+                    {
+                        var timestamp = now.ToString("yyyyMMdd_HHmmss");
+                        var filename = $"LabData_{timestamp}.json";
+                        var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
+
+                        var messagesSnapshot = LabMessages.ToArray();
+                        var json = JsonSerializer.Serialize(messagesSnapshot, new JsonSerializerOptions { WriteIndented = true });
+                        await File.WriteAllTextAsync(path, json, stoppingToken);
+
+                        _logger.LogInformation($"✅ Saved {messagesSnapshot.Length} messages to USB: {path}");
+
+                        // Clear after save
+                        while (!LabMessages.IsEmpty)
+                            LabMessages.TryTake(out _);
+
+                        _lastWriteStatus = $"Last saved to USB at {now:yyyy-MM-dd HH:mm:ss}";
+                        _lastWriteTime = now;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ No USB drive detected.");
+                        _lastWriteStatus = "USB not found";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ Error writing to USB");
+                    _lastWriteStatus = "Error writing to USB";
+                }
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+        }
+    }
+
+
+    public static void TriggerManualSave()
+    {
+        _ = Task.Run(() => SaveMessagesToUsb(force: true));
+    }
+
+    private static async Task SaveMessagesToUsb(bool force = false)
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            if (!force && (now - _lastReceivedMessage) < TimeSpan.FromSeconds(30))
+                return;
+
+            // same logic from periodic save...
+        }
+        catch (Exception ex)
+        {
+            // handle/log
+        }
+    }
+
+    public static DateTime GetLastMessageTime() => _lastReceivedMessage;
+    public static string GetLastWriteStatus() => _lastWriteStatus;
+    public static DateTime GetLastWriteTime() => _lastWriteTime;
+
 
 }
