@@ -87,7 +87,7 @@ def send_bad_messages():
 
 def post_manual_save():
     """Send the manual save trigger via POST request."""
-    url = "http://192.168.0.3/api/labdata/save"
+    url = "http://localhost:5000/api/labdata/save"
     try:
         resp = requests.post(url)
         print(f"POST /api/labdata/save Response: {resp.status_code} - {resp.text}")

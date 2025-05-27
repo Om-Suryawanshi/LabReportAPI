@@ -1,6 +1,15 @@
 @LabReportAPI_HostAddress = http://0.0.0.0:5097
+@LabReportAPI_HostAddress_Build = http://localhost:5000
 
-GET {{LabReportAPI_HostAddress}}/api/labdata/status
+GET {{{{LabReportAPI_HostAddress}}}}/api/labdata/status
 
 ###
 POST {{LabReportAPI_HostAddress}}/api/labdata/save
+
+
+###
+
+GET {{{{{{LabReportAPI_HostAddress_Build}}}}}}/api/labdata/status
+
+###
+POST {{LabReportAPI_HostAddress_Build}}/api/labdata/save
