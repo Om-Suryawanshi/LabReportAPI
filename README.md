@@ -91,6 +91,6 @@ If left empty, the app will try to auto-detect the first available removable USB
 ---
 
 ## 📩 Need Help?
-If you're unsure how to send TCP messages or need help testing, please reach out to the maintainer.
+If you're unsure how to send TCP messages or need help testing, please reach out to me.
 
 ---
