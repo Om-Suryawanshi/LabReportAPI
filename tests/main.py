@@ -1,9 +1,60 @@
 import socket
 import requests
 import time
+import random
 
-SERVER_IP = "192.168.0.3"  # <-- change this to your server's LAN IP
+SERVER_IP = "192.168.0.3"
 SERVER_PORT = 12377
+
+TESTS = [
+    {
+        "name": "GLUCOSE",
+        "unit": "mg/dL",
+        "min": 70,
+        "max": 140
+    },
+    {
+        "name": "HEMOGLOBIN",
+        "unit": "g/dL",
+        "min": 12.0,
+        "max": 17.5
+    },
+    {
+        "name": "CHOLESTEROL",
+        "unit": "mg/dL",
+        "min": 120,
+        "max": 240
+    },
+]
+
+PATIENT_IDS = ["PATIENT001", "PATIENT002", "PATIENT003"]
+
+
+def random_value(test):
+    if isinstance(test['min'], float) or isinstance(test['max'], float):
+        return round(random.uniform(test['min'], test['max']), 1)
+    else:
+        return random.randint(test['min'], test['max'])
+
+def build_random_message(patient_id, test):
+    value = random_value(test)
+    msg = f"{patient_id}|{test['name']}|{value}|{test['unit']}"
+    return b'\x02' + msg.encode('utf-8') + b'\x03'
+
+def build_bad_message():
+    """Create and return a set of clearly invalid test messages to send."""
+    bad_messages = [
+        b'\x02PATIENT999|GLUCOSE|-999|mg/dL\x03',                # Invalid patient, invalid value
+        b'\x02PATIENT001|UNKNOWNTEST|123|mg/dL\x03',             # Invalid test
+        b'\x02PATIENT002|GLUCOSE|9999|mg/dL\x03',                # Value out of valid range
+        b'\x02PATIENT003|HEMOGLOBIN|15|mg/L\x03',                # Wrong unit
+        b'\x02|GLUCOSE|100|mg/dL\x03',                           # Missing patient ID
+        b'\x02PATIENT001|GLUCOSE|abc|mg/dL\x03',                 # Non-numeric value
+        b'\x02PATIENT002|HEMOGLOBIN||g/dL\x03',                  # Missing value
+        b'PATIENT003|CHOLESTEROL|180|mg/dL',                     # Missing STX/ETX
+        b'\x02PATIENT001|GLUCOSE|120|mg/dL<script>bad()</script>\x03',  # Injection attempt
+    ]
+    return bad_messages
 
 def send_and_receive(data, description, expect_multiple=False, delay_between=0.05):
     print(f"\n--- {description} ---")
@@ -30,84 +81,52 @@ def send_and_receive(data, description, expect_multiple=False, delay_between=0.0
     except Exception as e:
         print(f"Exception: {e}")
 
-def error():
-    # 2. SQL Injection attempt
-    send_and_receive(
-        b'\x02PATIENT001;DROP TABLE|GLUCOSE|120|mg/dL\x03',
-        "SQL Injection Attempt"
-    )
+def send_bad_messages():
+    bad_messages = build_bad_message()
+    send_and_receive(bad_messages, "Sending Bad/Invalid Messages", expect_multiple=True, delay_between=0.1)
 
-    # 3. Buffer overflow (very long message)
-    send_and_receive(
-        b'\x02' + b'A' * 10000 + b'\x03',
-        "Buffer Overflow Attempt"
-    )
-
-    # 4. Malformed message (no ETX)
-    send_and_receive(
-        b'\x02INCOMPLETE_MESSAGE',
-        "Malformed Message (Missing ETX)"
-    )
-
-    # 5. Rapid fire (rate limiting test)
-    rapid_fire_packets = [b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03'] * 10
-    send_and_receive(
-        rapid_fire_packets,
-        "Rapid Fire (Rate Limiting Test)",
-        expect_multiple=True,
-        delay_between=0.01
-    )
-
-    # 6. Invalid test name
-    send_and_receive(
-        b'\x02PATIENT004|HACKTEST|100|mg/dL\x03',
-        "Invalid Test Name"
-    )
-
-    # 7. Invalid patient ID
-    send_and_receive(
-        b'\x02BADPATIENT|GLUCOSE|120|mg/dL\x03',
-        "Invalid Patient ID"
-    )
-
-    # 8. Invalid value
-    send_and_receive(
-        b'\x02PATIENT005|GLUCOSE|-10|mg/dL\x03',
-        "Invalid Value"
-    )
-
-    # 9. Invalid unit
-    send_and_receive(
-        b'\x02PATIENT006|GLUCOSE|120|mg/L\x03',
-        "Invalid Unit"
-    )
-
-    # 10. HTML/JS injection attempt
-    send_and_receive(
-        b'\x02PATIENT007|GLUCOSE|120|mg/dL<script>alert(1)</script>\x03',
-        "HTML/JS Injection Attempt"
-    )
-
-def post():
+def post_manual_save():
+    """Send the manual save trigger via POST request."""
     url = "http://192.168.0.3/api/labdata/save"
-    resp = requests.post(url)
-    print(resp)
+    try:
+        resp = requests.post(url)
+        print(f"POST /api/labdata/save Response: {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"Failed to send POST request: {e}")
+
+def send_random_valid_messages(num_messages):
+    """Send the specified number of random valid test messages."""
+    for i in range(num_messages):
+        patient_id = random.choice(PATIENT_IDS)
+        test = random.choice(TESTS)
+        msg = build_random_message(patient_id, test)
+        send_and_receive(msg, f"Valid Randomized Message {i+1}: {patient_id} {test['name']}")
+        time.sleep(0.1)
 
 def main():
-    # 1. Valid messages
-    valid_messages = [
-        b'\x02PATIENT001|GLUCOSE|120|mg/dL\x03',
-        b'\x02PATIENT002|HEMOGLOBIN|14.5|g/dL\x03',
-        b'\x02PATIENT003|CHOLESTEROL|180|mg/dL\x03',
-    ]
-    for msg in valid_messages:
-        send_and_receive(msg, "Valid Message")
-
-    post()
-
-    # error()
-
-    
+    print("Lab Data Test Tool\n")
+    print("1. Send random valid test messages")
+    print("2. Send invalid/bad test messages")
+    print("3. Trigger manual save (POST)")
+    print("4. Exit")
+    while True:
+        choice = input("\nEnter your choice (1-4): ").strip()
+        if choice == '1':
+            try:
+                num = int(input("How many random valid test messages to send? "))
+                assert num > 0
+                send_random_valid_messages(num)
+            except Exception:
+                print("Please enter a valid positive integer.")
+        elif choice == '2':
+            send_bad_messages()
+        elif choice == '3':
+            post_manual_save()
+        elif choice == '4':
+            print("Bye!")
+            break
+        else:
+            print("Invalid option. Try again.")
 
 if __name__ == "__main__":
     main()

@@ -304,8 +304,6 @@ public class TcpListenerService : BackgroundService
         }
     }
 
-
-
     // USB 
     private async Task SaveMessagesToJsonPeriodically(CancellationToken stoppingToken)
     {
@@ -324,7 +322,6 @@ public class TcpListenerService : BackgroundService
 
                 try
                 {
-                    // 1. Try to use configured USB path if present
                     if (!string.IsNullOrWhiteSpace(_settings.UsbPath))
                     {
                         usbDrive = new DriveInfo(_settings.UsbPath);
@@ -335,11 +332,9 @@ public class TcpListenerService : BackgroundService
                         }
                     }
 
-                    // 2. Fallback to automatic USB detection
                     if (usbDrive == null)
                     {
-                        usbDrive = DriveInfo.GetDrives()
-                            .FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
+                        usbDrive = DriveInfo.GetDrives().FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
                     }
 
                     if (usbDrive == null)
@@ -350,29 +345,35 @@ public class TcpListenerService : BackgroundService
                         continue;
                     }
 
-                    // 3. Attempt write with retry logic
+                    var filename = "LabData.json";
+                    var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
+
                     int retryCount = 3;
                     while (retryCount-- > 0)
                     {
                         try
                         {
-                            var timestamp = now.ToString("yyyyMMdd_HHmmss");
-                            var filename = $"LabData_{timestamp}.json";
-                            var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
-
                             var messagesSnapshot = LabMessages.ToArray();
-                            var json = JsonSerializer.Serialize(messagesSnapshot, new JsonSerializerOptions { WriteIndented = true });
+                            List<LabMessage> allMessages = new();
 
-                            await File.WriteAllTextAsync(path, json, stoppingToken);
+                            if (File.Exists(path))
+                            {
+                                var existingJson = await File.ReadAllTextAsync(path, stoppingToken);
+                                allMessages = JsonSerializer.Deserialize<List<LabMessage>>(existingJson) ?? new();
+                            }
+
+                            allMessages.AddRange(messagesSnapshot);
+                            var updatedJson = JsonSerializer.Serialize(allMessages, new JsonSerializerOptions { WriteIndented = true });
+
+                            await File.WriteAllTextAsync(path, updatedJson, stoppingToken);
                             _logger.LogInformation($"✅ Saved {messagesSnapshot.Length} messages to USB at: {path}");
 
-                            // Clear after successful write
                             while (!LabMessages.IsEmpty)
                                 LabMessages.TryTake(out _);
 
                             _lastWriteStatus = $"Saved at {now:HH:mm:ss}";
                             _lastWriteTime = now;
-                            break; // Success
+                            break;
                         }
                         catch (Exception ex)
                         {
@@ -402,13 +403,11 @@ public class TcpListenerService : BackgroundService
 
 
     private async Task SaveMessagesToUsb(bool force = false)
-
     {
         try
         {
             var now = DateTime.UtcNow;
 
-            // Skip if not forced and not idle
             if (!force && (now - _lastReceivedMessage) < TimeSpan.FromSeconds(30))
                 return;
 
@@ -418,7 +417,7 @@ public class TcpListenerService : BackgroundService
 
             try
             {
-                // 1. Try configured path
+                // 1. Configured path or fallback
                 if (!string.IsNullOrWhiteSpace(_settings.UsbPath))
                 {
                     usbDrive = new DriveInfo(_settings.UsbPath);
@@ -429,11 +428,9 @@ public class TcpListenerService : BackgroundService
                     }
                 }
 
-                // 2. Fallback auto-detection
                 if (usbDrive == null)
                 {
-                    usbDrive = DriveInfo.GetDrives()
-                        .FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
+                    usbDrive = DriveInfo.GetDrives().FirstOrDefault(d => d.DriveType == DriveType.Removable && d.IsReady);
                 }
 
                 if (usbDrive == null)
@@ -443,22 +440,28 @@ public class TcpListenerService : BackgroundService
                     return;
                 }
 
-                // 3. Retry save logic
+                var filename = "LabData.json";
+                var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
+
                 int retryCount = 3;
                 while (retryCount-- > 0)
                 {
                     try
                     {
-                        var timestamp = now.ToString("yyyyMMdd_HHmmss");
-                        var filename = $"LabData_{timestamp}.json";
-                        var path = Path.Combine(usbDrive.RootDirectory.FullName, filename);
-
                         var messagesSnapshot = LabMessages.ToArray();
-                        var json = JsonSerializer.Serialize(messagesSnapshot, new JsonSerializerOptions { WriteIndented = true });
+                        List<LabMessage> allMessages = new();
 
-                        await File.WriteAllTextAsync(path, json);
+                        if (File.Exists(path))
+                        {
+                            var existingJson = await File.ReadAllTextAsync(path);
+                            allMessages = JsonSerializer.Deserialize<List<LabMessage>>(existingJson) ?? new();
+                        }
 
-                        _logger.LogInformation($"✅ Manual save: {messagesSnapshot.Length} messages to {path}");
+                        allMessages.AddRange(messagesSnapshot);
+                        var updatedJson = JsonSerializer.Serialize(allMessages, new JsonSerializerOptions { WriteIndented = true });
+
+                        await File.WriteAllTextAsync(path, updatedJson);
+                        _logger.LogInformation($"✅ Manual save: {messagesSnapshot.Length} messages appended to {path}");
 
                         while (!LabMessages.IsEmpty)
                             LabMessages.TryTake(out _);
@@ -486,6 +489,7 @@ public class TcpListenerService : BackgroundService
             _logger.LogError(ex, "Fatal error in SaveMessagesToUsb");
         }
     }
+
 
 
     public static DateTime GetLastMessageTime() => _lastReceivedMessage;
