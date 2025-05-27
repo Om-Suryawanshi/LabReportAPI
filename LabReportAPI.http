@@ -3,3 +3,4 @@
 GET {{LabReportAPI_HostAddress}}/api/labdata/status
 
 ###
+POST {{LabReportAPI_HostAddress}}/api/labdata/save

@@ -58,30 +58,41 @@ public class TcpListenerService : BackgroundService
         try
         {
             _tcpListener.Start();
-            _logger.LogInformation($"TCP Server started on {IpAddress}:{Port}");
+            _logger.LogInformation($"✅ TCP Server started on {IpAddress}:{Port}");
 
-            // Start USB saving in background
-            _ = SaveMessagesToJsonPeriodically(stoppingToken);
+            // Background task for saving data
+            var saveTask = SaveMessagesToJsonPeriodically(stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 var tcpClient = await _tcpListener.AcceptTcpClientAsync(stoppingToken);
                 _ = HandleClientAsync(tcpClient, stoppingToken);
             }
+
+            _logger.LogInformation("🛑 Cancellation requested. Beginning graceful shutdown...");
         }
         catch (OperationCanceledException)
         {
-            // Normal shutdown
+            _logger.LogInformation("🟡 TCP server is shutting down due to cancellation request.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "TCP listener fatal error");
+            _logger.LogError(ex, "❌ TCP listener fatal error");
         }
         finally
         {
-            _tcpListener?.Stop();
+            try
+            {
+                _tcpListener?.Stop();
+                _logger.LogInformation("🔌 TCP listener stopped.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error during TCP listener shutdown.");
+            }
         }
     }
+
 
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
