@@ -22,7 +22,7 @@
 - Works even if the USB path is not explicitly configured (`auto-detects removable drives`).
 
 ---
-
+<!-- 
 ## 🧪 For Testers
 
 ### 🔧 How to Run Locally (No Visual Studio Needed)
@@ -55,8 +55,8 @@ Use a tool like Netcat or a TCP client to send:
 On port `12377` to your IP.
 
 ---
-
-## 🧑‍💻 For Developers
+ -->
+<!-- ## 🧑‍💻 For Developers
 
 ### Project Structure
 ```
@@ -68,7 +68,7 @@ On port `12377` to your IP.
   - LabSettings.cs             // Configurable USB path
 /Controllers
   - LabDataController.cs       // API endpoints
-```
+``` -->
 
 ### How to Build
 You can build using the .NET CLI:
