@@ -22,6 +22,12 @@ public class TcpListenerService : BackgroundService
     private readonly ILogger<TcpListenerService> _logger;
     private readonly LabSettings _settings;
     private TcpListener? _tcpListener;
+
+    private readonly string _localIp = Dns.GetHostEntry(Dns.GetHostName())
+    .AddressList
+    .FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork)?
+    .ToString() ?? "127.0.0.1";
+
     private const string IpAddress = "0.0.0.0";
     private const int Port = 12377;
     private const int BufferSize = 4096;
@@ -52,13 +58,13 @@ public class TcpListenerService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var localEndPoint = new IPEndPoint(IPAddress.Parse(IpAddress), Port);
+        var localEndPoint = new IPEndPoint(IPAddress.Parse(_localIp), Port);
         _tcpListener = new TcpListener(localEndPoint);
 
         try
         {
             _tcpListener.Start();
-            _logger.LogInformation($"✅ TCP Server started on {IpAddress}:{Port}");
+            _logger.LogInformation($"✅ TCP Server started on {_localIp}:{Port}");
 
             // Background task for saving data
             var saveTask = SaveMessagesToJsonPeriodically(stoppingToken);
