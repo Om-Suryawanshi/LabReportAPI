@@ -59,7 +59,7 @@ public class TcpListenerService : BackgroundService
         {
             _tcpListener.Start();
             _logger.LogInformation($"✅ TCP Server started on {_localIp}:{Port}");
-            _logService.Log($"TCP Listener started", "INFO", "{TcpListenerService}");
+            _logService.Log($"TCP Listener started", "INFO", "TcpListenerService");
 
 
             // Background task for saving data

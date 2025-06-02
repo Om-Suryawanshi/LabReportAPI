@@ -49,3 +49,11 @@
 2025-06-02T11:52:55.8212770Z [INFO] (🟡 TCP server is shutting down due to cancellation request.) TCP Listener Cancellation requested
 2025-06-02T11:52:55.8224596Z [INFO] (🔌 TCP listener stopped.) TCP Listener stopped
 2025-06-02T11:52:59.8444850Z [INFO] ({TcpListenerService}) TCP Listener started
+2025-06-02T12:03:59.3353722Z [INFO] (🟡 TCP server is shutting down due to cancellation request.) TCP Listener Cancellation requested
+2025-06-02T12:03:59.3362736Z [INFO] (🔌 TCP listener stopped.) TCP Listener stopped
+2025-06-02T12:04:06.6213739Z [INFO] ({TcpListenerService}) TCP Listener started
+2025-06-02T12:04:55.6516427Z [INFO] (🟡 TCP server is shutting down due to cancellation request.) TCP Listener Cancellation requested
+2025-06-02T12:04:55.6537237Z [INFO] (🔌 TCP listener stopped.) TCP Listener stopped
+2025-06-02T12:05:03.7978952Z [INFO] (TcpListenerService) TCP Listener started
+2025-06-02T12:18:11.7707276Z [INFO] (🟡 TCP server is shutting down due to cancellation request.) TCP Listener Cancellation requested
+2025-06-02T12:18:11.7720018Z [INFO] (🔌 TCP listener stopped.) TCP Listener stopped
