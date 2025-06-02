@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LabReportAPI Logs</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background-color: #f2f2f2; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+  </style>
+</head>
+<body>
+  <h1>TCP Listener Logs</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Level</th>
+        <th>Message</th>
+        <th>Context</th>
+      </tr>
+    </thead>
+    <tbody id="logTable"></tbody>
+  </table>
+
+  <script>
+    async function fetchLogs() {
+      const response = await fetch('/api/logs');
+      const logs = await response.json();
+
+      const table = document.getElementById('logTable');
+      table.innerHTML = ''; // clear previous
+
+      logs.reverse().forEach(log => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${new Date(log.timestamp).toLocaleString()}</td>
+          <td>${log.level}</td>
+          <td>${log.message}</td>
+          <td>${log.context ?? ''}</td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    fetchLogs();
+    setInterval(fetchLogs, 5000); // refresh every 5 seconds
+  </script>
+</body>
+</html>

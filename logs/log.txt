@@ -1,0 +1,51 @@
+2025-06-02T11:37:01.9354966Z [INFO] ({TcpListenerService}) TCP Listener started
+2025-06-02T11:44:10.8180667Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:44:10.9363659Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:44:11.0588563Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:44:11.1634125Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:44:11.2901213Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:44:42.3011218Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:44:45.4835805Z [WARNING] (Client IP: 192.168.0.4) INVALID MESSAGE
+2025-06-02T11:44:45.5885142Z [WARNING] (Client IP: 192.168.0.4) INVALID MESSAGE
+2025-06-02T11:44:45.6933153Z [WARNING] (Client IP: 192.168.0.4) INVALID MESSAGE
+2025-06-02T11:44:45.8079390Z [WARNING] (Client IP: 192.168.0.4) INVALID MESSAGE
+2025-06-02T11:44:45.9113191Z [WARNING] (Client IP: 192.168.0.4) INVALID MESSAGE
+2025-06-02T11:44:46.0142659Z [WARNING] (Client IP: 192.168.0.4) INVALID MESSAGE
+2025-06-02T11:44:46.1181041Z [WARNING] (Client IP: 192.168.0.4) INVALID MESSAGE
+2025-06-02T11:44:49.3325242Z [WARNING] (Client IP: 192.168.0.4) MALICIOUS INPUT
+2025-06-02T11:44:52.3055711Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:45:02.3123612Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:45:12.3240028Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:45:22.3317623Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:45:32.3447151Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:45:42.3576305Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:45:52.3700921Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:46:02.3848431Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:46:12.3998366Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:46:21.5473973Z [INFO] (🟡 TCP server is shutting down due to cancellation request.) TCP Listener Cancellation requested
+2025-06-02T11:46:21.5483554Z [INFO] (🔌 TCP listener stopped.) TCP Listener stopped
+2025-06-02T11:46:29.6426760Z [INFO] ({TcpListenerService}) TCP Listener started
+2025-06-02T11:46:44.8089055Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:46:44.9361360Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:46:45.0598483Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:46:45.1844935Z [INFO] (Client IP: 192.168.0.4) Valid Message
+2025-06-02T11:47:19.7039568Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:47:29.7086890Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:47:39.7233111Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:47:49.7348278Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:47:59.7438548Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:48:09.7479463Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:48:19.7536560Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:48:29.7615115Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:48:39.7669010Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:48:49.7724930Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:48:59.7880087Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:49:09.7936711Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:49:19.8010347Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:49:29.8167239Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:49:39.8314098Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:49:49.8472988Z [WARNING] (⚠️ No USB drive detected.) No USB Drive detected.
+2025-06-02T11:50:00.4198007Z [INFO] (Data Saved to D:\LabData.json) Data Saved.
+2025-06-02T11:52:55.8212770Z [INFO] (🟡 TCP server is shutting down due to cancellation request.) TCP Listener Cancellation requested
+2025-06-02T11:52:55.8224596Z [INFO] (🔌 TCP listener stopped.) TCP Listener stopped
+2025-06-02T11:52:59.8444850Z [INFO] ({TcpListenerService}) TCP Listener started
