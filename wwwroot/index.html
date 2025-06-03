@@ -1,18 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>LabReportAPI Logs</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ddd; padding: 8px; }
-    th { background-color: #f2f2f2; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    button {
+      margin-right: 10px;
+      padding: 0.5rem 1rem;
+    }
+
+    pre {
+      background: #f4f4f4;
+      padding: 1rem;
+      font-family: monospace;
+      border: 1px solid #ccc;
+    }
+
+    /* Dark mode base styles (inactive by default) */
+    body.dark {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+    }
+
+    body.dark table,
+    body.dark th,
+    body.dark td {
+      border-color: #444;
+    }
+
+    /* 
+    label {
+      color: #000;
+    }
+
+    body.dark label {
+      color: #e0e0e0;
+    } */
+
+    body.dark th {
+      background-color: #2d2d2d;
+    }
+
+    body.dark tr:nth-child(even) {
+      background-color: #2a2a2a;
+    }
+
+    body.dark pre {
+      background: #2d2d2d;
+      border-color: #444;
+    }
+
+    /* Filter and dark mode toggle styles */
+    .filter-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 1rem 0 1.5rem;
+      padding: 0.5rem 1rem;
+      background-color: #f2f2f2;
+      border-radius: 8px;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    select {
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+      background-color: #fff;
+    }
+
+    body.dark select {
+      background-color: #2d2d2d;
+      color: #e0e0e0;
+      border: 1px solid #666;
+    }
+
+    #themeToggleBtn {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background-color: #333;
+      color: #fff;
+      transition: background 0.3s;
+    }
+
+    body.dark #themeToggleBtn {
+      background-color: #eee;
+      color: #111;
+    }
   </style>
 </head>
+
 <body>
   <h1>TCP Listener Logs</h1>
+
+  <!-- Buttons -->
+  <button onclick="manualSave()">Manual Save</button>
+  <button onclick="fetchSystemStatus()">Refresh System Status</button>
+  <button id="themeToggleBtn" onclick="toggleTheme()">Toggle Dark Mode</button>
+
+  <!-- System Status Display -->
+  <h2>System Status</h2>
+  <pre id="logStatus">Loading...</pre>
+
+  <!-- Log Entries Table -->
+  <h2>Log Entries</h2>
+  <div class="filter-container">
+    <div class="filter-group">
+      <label for="logLevelFilter" style="color: #2a2a2a;">Filter by Level:</label>
+      <select id="logLevelFilter" onchange="fetchLogs()">
+        <option value="">All</option>
+        <option value="INFO">INFO</option>
+        <option value="WARNING">WARN</option>
+        <option value="ERROR">ERROR</option>
+      </select>
+    </div>
+  </div>
+
+
   <table>
     <thead>
       <tr>
@@ -26,27 +164,109 @@
   </table>
 
   <script>
+    // Manual save
+    async function manualSave() {
+      try {
+        const response = await fetch('api/labdata/save', { method: 'POST' });
+        const text = await response.text();
+        alert('Manual save triggered: ' + response.status + ' - ' + text);
+      } catch (error) {
+        alert('Failed to send POST request: ' + error);
+      }
+    }
+
+    // Fetch system status
+    async function fetchSystemStatus() {
+      try {
+        const response = await fetch('api/labdata/status');
+        if (!response.ok) throw new Error("Server error: " + response.status);
+
+        const data = await response.json();
+
+        const statusText = `
+Status:               ${data.status}
+Protocol:             ${data.protocol}
+Port:                 ${data.port}
+Server IP:            ${data.serverIp}
+Last Message Time:    ${new Date(data.lastMessageReceivedAt).toLocaleString()}
+Last Write Status:    ${data.lastWriteStatus}
+Last Write Time:      ${data.lastWriteTime === "0001-01-01T00:00:00" ? "N/A" : new Date(data.lastWriteTime).toLocaleString()}
+        `;
+        document.getElementById("logStatus").textContent = statusText.trim();
+
+      } catch (error) {
+        document.getElementById("logStatus").textContent = "Failed to fetch system status: " + error.message;
+      }
+    }
+
+    // Fetch logs
     async function fetchLogs() {
-      const response = await fetch('/api/logs');
-      const logs = await response.json();
+      try {
+        const response = await fetch('api/logs');
+        if (!response.ok) throw new Error("Server error: " + response.status);
 
+        const logs = await response.json();
+        displayLogs(logs ?? []);
+      } catch (error) {
+        console.error("Failed to fetch logs: " + error.message);
+      }
+    }
+
+    function displayLogs(logs) {
       const table = document.getElementById('logTable');
-      table.innerHTML = ''; // clear previous
+      table.innerHTML = ''; // Clear previous
 
-      logs.reverse().forEach(log => {
+      const selectedLevel = document.getElementById('logLevelFilter').value;
+
+      // Apply level filter if selected
+      let filtered = logs;
+      if (selectedLevel) {
+        filtered = logs.filter(log => log.level === selectedLevel);
+      }
+
+      // Limit to latest 100 logs
+      const recentLogs = filtered.slice(-100).reverse();
+
+      if (recentLogs.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="4" style="text-align:center;">No log entries available</td>`;
+        table.appendChild(row);
+        return;
+      }
+
+      recentLogs.forEach(log => {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${new Date(log.timestamp).toLocaleString()}</td>
-          <td>${log.level}</td>
-          <td>${log.message}</td>
-          <td>${log.context ?? ''}</td>
-        `;
+      <td>${new Date(log.timestamp).toLocaleString()}</td>
+      <td>${log.level}</td>
+      <td>${log.message}</td>
+      <td>${log.context ?? ''}</td>
+    `;
         table.appendChild(row);
       });
     }
 
+    function toggleTheme() {
+      const isDark = document.body.classList.toggle('dark');
+      document.getElementById('themeToggleBtn').textContent = isDark
+        ? "Toggle Light Mode"
+        : "Toggle Dark Mode";
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+
+    // Load everything on page load
+    fetchSystemStatus();
     fetchLogs();
-    setInterval(fetchLogs, 5000); // refresh every 5 seconds
+    setInterval(fetchLogs, 5000); // Refresh logs every 5 seconds
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark');
+      document.getElementById('themeToggleBtn').textContent = "Toggle Light Mode";
+    }
+
   </script>
 </body>
+
 </html>

@@ -3,7 +3,7 @@ import requests
 import time
 import random
 
-SERVER_IP = "192.168.0.4"
+SERVER_IP = "192.168.0.3"
 SERVER_PORT = 12377
 
 TESTS = [

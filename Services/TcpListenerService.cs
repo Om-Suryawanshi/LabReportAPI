@@ -21,7 +21,6 @@ public class TcpListenerService : BackgroundService
     .FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork)?
     .ToString() ?? "127.0.0.1";
 
-    private const string IpAddress = "0.0.0.0";
     private const int Port = 12377;
     private const int BufferSize = 4096;
 
