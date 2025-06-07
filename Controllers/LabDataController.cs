@@ -39,9 +39,14 @@ namespace LabReportAPI.Controllers
             if (TcpListenerService.Instance is null)
                 return StatusCode(500, new { message = "TCP Listener service is not available." });
 
-            var (success, message) = await TcpListenerService.Instance.TriggerManualSave();
-            return Ok(new { success, message });
+            var (success, result) = await TcpListenerService.Instance.TriggerManualSave();
+            return Ok(new
+            {
+                success,
+                result.StatusCode,
+                result.Message,
+                result.MessagesSaved
+            });
         }
     }
-
 }

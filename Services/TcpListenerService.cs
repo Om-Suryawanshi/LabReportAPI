@@ -438,23 +438,35 @@ namespace LabReportAPI.Services
         }
 
 
-        public async Task<(bool success, string message)> TriggerManualSave()
+        public async Task<(bool success, SaveResult result)> TriggerManualSave()
         {
-            await SaveMessagesToUsb(force: true);
-            return (_lastWriteStatus.StartsWith("Saved"), _lastWriteStatus);
+            var result = await SaveMessagesToUsb(force: true);
+            return (result.StatusCode == "SUCCESS", result);
         }
 
 
-        private async Task SaveMessagesToUsb(bool force = false)
+
+        private async Task<SaveResult> SaveMessagesToUsb(bool force = false)
         {
+            int messagesSaved = 0;
             try
             {
                 var now = DateTime.UtcNow;
 
                 if (!force && (now - _lastReceivedMessage) < TimeSpan.FromSeconds(30))
-                    return;
+                {
+                    return new SaveResult
+                    {
+                        StatusCode = "TOO_SOON",
+                        Message = "Manual save skipped: recent message received.",
+                        MessagesSaved = 0
+                    };
+
+                }
 
                 _lastWriteStatus = "Manual USB write triggered...";
+                _logger.LogInformation("🟡 Manual save triggered at {Time}", DateTime.UtcNow);
+
 
                 DriveInfo? usbDrive = null;
 
@@ -482,7 +494,12 @@ namespace LabReportAPI.Services
                         _logService.Log("No USB drive detected.", "WARNING", "❌ No USB drive detected.");
 
                         _lastWriteStatus = "Manual save failed: USB not found";
-                        return;
+                        return new SaveResult
+                        {
+                            StatusCode = "USB_NOT_FOUND",
+                            Message = "Manual save failed: USB not found",
+                            MessagesSaved = 0
+                        };
                     }
 
                     var filename = "LabData.json";
@@ -494,6 +511,7 @@ namespace LabReportAPI.Services
                         try
                         {
                             var messagesSnapshot = LabMessages.ToArray();
+                            messagesSaved = messagesSnapshot.Length;
                             List<LabMessage> allMessages = new();
 
                             if (File.Exists(path))
@@ -517,7 +535,12 @@ namespace LabReportAPI.Services
                             _lastWriteStatus = $"Manual save at {now:HH:mm:ss}";
                             _logService.Log("Manual save.", "INFO", $"Manual save at {now:HH:mm:ss}");
 
-                            return;
+                            return new SaveResult
+                            {
+                                StatusCode = messagesSaved == 0 ? "NO_MESSAGES" : "SUCCESS",
+                                Message = $"Manual save at {now:HH:mm:ss}",
+                                MessagesSaved = messagesSaved
+                            };
                         }
                         catch (Exception ex)
                         {
@@ -539,9 +562,13 @@ namespace LabReportAPI.Services
             {
                 _logger.LogError(ex, "Fatal error in SaveMessagesToUsb");
             }
+            return new SaveResult
+            {
+                StatusCode = "ERROR",
+                Message = "Manual save failed: unexpected internal error",
+                MessagesSaved = 0
+            };
         }
-
-
 
         public static DateTime GetLastMessageTime() => _lastReceivedMessage;
         public static string GetLastWriteStatus() => _lastWriteStatus;

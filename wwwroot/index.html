@@ -121,6 +121,11 @@
       background-color: #eee;
       color: #111;
     }
+
+    body.dark #notificationBox {
+      background-color: #444;
+      color: #eee;
+    }
   </style>
 </head>
 
@@ -163,17 +168,51 @@
     <tbody id="logTable"></tbody>
   </table>
 
+  <div id="notificationBox" style="
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+      display: none;
+      background-color: #323232;
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: opacity 0.5s ease-in-out;
+  "></div>
+
   <script>
     // Manual save
     async function manualSave() {
       try {
         const response = await fetch('api/labdata/save', { method: 'POST' });
-        const text = await response.text();
-        alert('Manual save triggered: ' + response.status + ' - ' + text);
+        const result = await response.json();
+
+        console.log(result);
+
+        if (!result || !result.statusCode) {
+          showNotification("Unexpected response from server.", true);
+          return;
+        }
+
+        // Simplified, readable messages
+        const messages = {
+          SUCCESS: "✅ Data successfully saved to USB.",
+          USB_NOT_FOUND: "❌ USB drive not found. Please insert a USB.",
+          NO_MESSAGES: "⚠️ No new data to save."
+        };
+
+        const isError = result.statusCode !== "SUCCESS";
+        const displayMessage = messages[result.statusCode] || "⚠️ Unknown status: " + result.statusCode;
+
+        showNotification(displayMessage, isError);
       } catch (error) {
-        alert('Failed to send POST request: ' + error);
+        showNotification('❌ Request failed: ' + error.message, true);
       }
     }
+
+
 
     // Fetch system status
     async function fetchSystemStatus() {
@@ -184,13 +223,13 @@
         const data = await response.json();
 
         const statusText = `
-Status:               ${data.status}
-Protocol:             ${data.protocol}
-Port:                 ${data.port}
-Server IP:            ${data.serverIp}
-Last Message Time:    ${new Date(data.lastMessageReceivedAt).toLocaleString()}
-Last Write Status:    ${data.lastWriteStatus}
-Last Write Time:      ${data.lastWriteTime === "0001-01-01T00:00:00" ? "N/A" : new Date(data.lastWriteTime).toLocaleString()}
+                Status:               ${data.status}
+                Protocol:             ${data.protocol}
+                Port:                 ${data.port}
+                Server IP:            ${data.serverIp}
+                Last Message Time:    ${new Date(data.lastMessageReceivedAt).toLocaleString()}
+                Last Write Status:    ${data.lastWriteStatus}
+                Last Write Time:      ${data.lastWriteTime === "0001-01-01T00:00:00" ? "N/A" : new Date(data.lastWriteTime).toLocaleString()}
         `;
         document.getElementById("logStatus").textContent = statusText.trim();
 
@@ -253,6 +292,21 @@ Last Write Time:      ${data.lastWriteTime === "0001-01-01T00:00:00" ? "N/A" : n
         : "Toggle Dark Mode";
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }
+
+    function showNotification(message, isError = false) {
+      const box = document.getElementById('notificationBox');
+      box.textContent = message;
+      box.style.backgroundColor = isError ? '#d9534f' : '#28a745'; // Red vs Green
+      box.style.display = 'block';
+      box.style.opacity = '1';
+
+      setTimeout(() => {
+        box.style.opacity = '0';
+        setTimeout(() => (box.style.display = 'none'), 500);
+      }, 3000);
+    }
+
+
 
 
     // Load everything on page load
