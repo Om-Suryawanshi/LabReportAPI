@@ -1,4 +1,7 @@
-public class LabSettings
+namespace LabReportAPI.Models
 {
-    public string UsbPath { get; set; } = string.Empty;
+    public class LabSettings
+    {
+        public string UsbPath { get; set; } = string.Empty;
+    }
 }

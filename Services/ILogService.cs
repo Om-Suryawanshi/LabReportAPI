@@ -1,3 +1,5 @@
+using LabReportAPI.Models;
+
 namespace LabReportAPI.Services
 {
     public interface ILogService

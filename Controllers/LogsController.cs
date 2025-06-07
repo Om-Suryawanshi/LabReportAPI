@@ -1,5 +1,5 @@
 using LabReportAPI.Services;
-using LabReportAPI;
+using LabReportAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LabReportAPI.Controllers
