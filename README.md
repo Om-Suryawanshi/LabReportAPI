@@ -10,16 +10,15 @@
 - Listens on `0.0.0.0:12377` for incoming TCP messages.
 - Each message must be wrapped in `STX` (`0x02`) and `ETX` (`0x03`) characters.
 - Valid messages are in the format: `PATIENT123|GLUCOSE|120|mg/dL`
-- Parsed data is stored in-memory as `LabMessage` objects.
+- Parsed data is stored in-memory as `LabMessage` objects. If the system has been idle (no TCP messages) for 30+ seconds, it saves data.
+- Data is appended to `LabData.json` on the USB drive.
+- Works even if the USB path is not explicitly configured (`auto-detects removable drives`).
 
 ### ✅ Web API Endpoints (`LabDataController`)
 - `/api/labdata/status`: Shows the server IP, port, last message time, and write status.
 - `/api/labdata/save`: Manually triggers a save to USB.
 
-### ✅ USB File Writing (`MessageProcessor`)
-- If the system has been idle (no TCP messages) for 30+ seconds, it saves data.
-- Data is appended to `LabData.json` on the USB drive.
-- Works even if the USB path is not explicitly configured (`auto-detects removable drives`).
+
 
 ---
 <!-- 
