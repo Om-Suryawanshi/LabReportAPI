@@ -18,6 +18,19 @@
 - `/api/labdata/status`: Shows the server IP, port, last message time, and write status.
 - `/api/labdata/save`: Manually triggers a save to USB.
 
+## 🧪 Lab Machine Configuration
+
+For the LabReportAPI to receive data, you will need to configure your lab machine's settings to send data to the IP address where LabReportAPI is running, on port `12377`.
+
+The image below shows an example of the kind of configuration settings you might encounter on a lab machine to set up the host and protocol parameters:
+
+![Lab Machine Host Setting Configuration](image.jpg "Example of lab machine host and protocol settings")
+
+**Key settings to look for on your lab machine:**
+
+* **IP Address/Host:** Set this to the IP address of the machine running `LabReportAPI`.
+* **Port:** Set this to `12377`.
+* **Protocol/Delimiter:** Ensure the machine is configured to send data with `STX` (Start of Text, `0x02`) and `ETX` (End of Text, `0x03`) delimiters. You may also need to configure other protocol parameters like `Baud Rate`, `Parity`, `Data Length`, and `Stop Bits` to match the machine's default output or a standard configuration.
 
 
 ---
