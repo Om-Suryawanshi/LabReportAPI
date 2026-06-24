@@ -4,9 +4,9 @@
 
 ---
 
-## 🧠 How the Code Works
+## How the Code Works
 
-### ✅ TCP Listener (`TcpListenerService`)
+### TCP Listener (`TcpListenerService`)
 - Listens on `0.0.0.0:12377` for incoming TCP messages.
 - Each message must be wrapped in `STX` (`0x02`) and `ETX` (`0x03`) characters.
 - Valid messages are in the format: `PATIENT123|GLUCOSE|120|mg/dL`
@@ -14,11 +14,11 @@
 - Data is appended to `LabData.json` on the USB drive.
 - Works even if the USB path is not explicitly configured (`auto-detects removable drives`).
 
-### ✅ Web API Endpoints (`LabDataController`)
+### Web API Endpoints (`LabDataController`)
 - `/api/labdata/status`: Shows the server IP, port, last message time, and write status.
 - `/api/labdata/save`: Manually triggers a save to USB.
 
-## 🧪 Lab Machine Configuration
+## Lab Machine Configuration
 
 For the LabReportAPI to receive data, you will need to configure your lab machine's settings to send data to the IP address where LabReportAPI is running, on port `12377`.
 
@@ -35,9 +35,9 @@ The image below shows an example of the kind of configuration settings you might
 
 ---
 <!-- 
-## 🧪 For Testers
+## For Testers
 
-### 🔧 How to Run Locally (No Visual Studio Needed)
+### How to Run Locally (No Visual Studio Needed)
 
 #### 1. Extract the ZIP
 Unzip the contents of the `RefactoredLabReportAPI.zip` you received.
@@ -50,7 +50,7 @@ Open CMD/PowerShell/Terminal in that folder.
 LabReportAPI.exe
 ```
 
-✅ It will start the TCP listener and WebAPI.
+ It will start the TCP listener and WebAPI.
 
 #### 4. Check the API
 Open a browser and go to:
@@ -68,7 +68,7 @@ On port `12377` to your IP.
 
 ---
  -->
-<!-- ## 🧑‍💻 For Developers
+<!-- ## For Developers
 
 ### Project Structure
 ```
@@ -102,7 +102,7 @@ If left empty, the app will try to auto-detect the first available removable USB
 
 ---
 
-## 📩 Need Help?
+## Need Help?
 If you're unsure how to send TCP messages or need help testing, please reach out to me.
 
 ---
